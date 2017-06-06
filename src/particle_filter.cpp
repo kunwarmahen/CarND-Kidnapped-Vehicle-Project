@@ -24,7 +24,8 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	//   x, y, theta and their uncertainties from GPS) and all weights to 1. 
 	// Add random Gaussian noise to each particle.
 	// NOTE: Consult particle_filter.h for more information about this method (and others in this file).
-	default_random_engine gen;
+	random_device rd;
+	default_random_engine gen(rd()) ;
 	num_particles = 50;
 	normal_distribution<double> dist_x(x, std[0]);
 	normal_distribution<double> dist_y(y, std[1]);
@@ -53,7 +54,8 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	//  http://www.cplusplus.com/reference/random/default_random_engine/
 
 	//cout << "In prediction" << endl;
-	default_random_engine gen;
+	random_device rd;
+	default_random_engine gen(rd());
 	normal_distribution<double> dist_x(0, std_pos[0]);
 	normal_distribution<double> dist_y(0, std_pos[1]);
 	normal_distribution<double> dist_psi(0, std_pos[2]);
@@ -135,7 +137,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 			double tranformed_y = (obs_landmark.x * sin(particle.theta)) + (obs_landmark.y * cos(particle.theta)) + particle.y;
 
 			double closets = DBL_MAX;
-			int closet_obs = 0;
+			int closet_obs = -1;
 			for (int j = 0; j <= map_landmarks.landmark_list.size(); j++) {
 				double distance = dist(map_landmarks.landmark_list[j].x_f, map_landmarks.landmark_list[j].y_f, tranformed_x, tranformed_y);
 
@@ -145,10 +147,16 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 				}
 			}
 
-			double x_diff  = pow(tranformed_x - map_landmarks.landmark_list[closet_obs].x_f, 2);
-			double y_diff = pow(tranformed_y - map_landmarks.landmark_list[closet_obs].y_f, 2);
-			double weight = WEIGHT_F * exp(-1 * ((x_diff / (2 * x_std_dev)) + (y_diff / (2 * y_std_dev))));
-			particles[i].weight *= weight;
+			if (closet_obs != -1) {
+				double x_diff = pow(tranformed_x - map_landmarks.landmark_list[closet_obs].x_f, 2);
+				double y_diff = pow(tranformed_y - map_landmarks.landmark_list[closet_obs].y_f, 2);
+				double weight = WEIGHT_F * exp(-1 * ((x_diff / (2 * x_std_dev)) + (y_diff / (2 * y_std_dev))));
+				particles[i].weight *= weight;
+			}
+			else {
+				particles[i].weight *= 0;
+			}
+			
 		}
 	}
 	//cout << "Out updateWeights" << endl;
@@ -221,8 +229,8 @@ void ParticleFilter::resample() {
 
 	//cout << "In resample" << endl;
 	weights.clear();
-	std::random_device rd;
-	std::default_random_engine gen(rd());
+	random_device rd;
+	default_random_engine gen(rd());
 
 	for (int i = 0; i < num_particles; i++) {
 		weights.push_back(particles[i].weight);
